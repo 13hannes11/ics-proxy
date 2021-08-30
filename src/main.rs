@@ -27,31 +27,55 @@ async fn make_ics_request(req: HttpRequest) -> impl Responder {
     HttpResponse::Ok().content_type("text/calendar").body(body)
 }
 
-// store tera template in application state
-async fn index(
+async fn edit(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
 ) -> Result<HttpResponse, Error> {
+    let mut s = "".to_string();
+
     if query.get("create").is_some() {
+        if let Some(link) = query.get("link") {
+            // submitted form
+            let proxy_link = &"Insert link here".to_owned();
+
+            let mut ctx = tera::Context::new();
+            ctx.insert("link", &link.to_owned());
+            ctx.insert("proxy_link", proxy_link);
+            s = tmpl
+                .render("edit.html", &ctx)
+                .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+        }
         // create new link
     } else if query.get("edit").is_some() {
+        if let Some(link) = query.get("link") {
+            // submitted form
+            let proxy_link = &"Insert link here".to_owned();
+
+            let mut ctx = tera::Context::new();
+            ctx.insert("link", &link.to_owned());
+            ctx.insert("proxy_link", proxy_link);
+            s = tmpl
+                .render("edit.html", &ctx)
+                .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+        }
         // edit existing link
     } else if query.get("replace").is_some() {
         // replace link
-    }
-    let s = if let Some(link) = query.get("link") {
-        // submitted form
-        let proxy_link = &"Insert link here".to_owned();
-
-        let mut ctx = tera::Context::new();
-        ctx.insert("link", &link.to_owned());
-        ctx.insert("proxy_link", proxy_link);
-        tmpl.render("edit.html", &ctx)
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?
+        s = "Replace".to_string();
     } else {
-        tmpl.render("index.html", &tera::Context::new())
+        s = tmpl
+            .render("error.html", &tera::Context::new())
             .map_err(|_| error::ErrorInternalServerError("Template error"))?
-    };
+    }
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(s))
+}
+
+// store tera template in application state
+async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
+    let s = tmpl
+        .render("index.html", &tera::Context::new())
+        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
@@ -67,6 +91,7 @@ async fn main() -> std::io::Result<()> {
             .data(tera)
             .route("/{id}/events.ics", web::get().to(make_ics_request))
             .service(web::resource("/").route(web::get().to(index)))
+            .service(web::resource("/edit").route(web::get().to(edit)))
     })
     .bind("127.0.0.1:8080")?
     .run()
