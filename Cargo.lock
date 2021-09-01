@@ -994,7 +994,6 @@ dependencies = [
 name = "ics-proxy"
 version = "0.1.0"
 dependencies = [
- "actix-http",
  "actix-web",
  "reqwest",
  "tera",

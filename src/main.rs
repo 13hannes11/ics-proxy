@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 
-use actix_http::{body::Body, Response};
-use actix_web::dev::ServiceResponse;
-use actix_web::http::StatusCode;
-use actix_web::middleware::errhandlers::{ErrorHandlerResponse, ErrorHandlers};
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use tera::Tera;
 
