@@ -7,5 +7,6 @@ edition = "2018"
 
 [dependencies]
 actix-web = "3"
+uuid = { version = "0.8.2", features = ["v4"] }
 reqwest = { version = "0.11", features = ["blocking"] }
 tera = "1.12.1"

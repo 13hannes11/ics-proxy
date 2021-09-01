@@ -7,14 +7,15 @@
 </head>
 
 <body>
-    <h1>Hi, your link is {{ proxy_link }}!</h1>
-    it takes the data from redirects to
+    <h1>Hi, your link is <a href="/{{ uuid }}/events.ics"">/{{ uuid }}/events.ics</a>!</h1>
+    it takes the data from
     <p>
-    <form>
-        <input type="text" value="{{ link }}">
-        <input value="Replace" name="replace" type="submit">
-    </form>
-    </p>
+    <form action=" edit_process">
+            <input name="uuid" type="hidden" value="{{ uuid }}">
+            <input name="link" type="text" value="{{ link }}">
+            <input value="Replace" name="replace" type="submit">
+            </form>
+            </p>
 </body>
 
 </html>
