@@ -196,14 +196,38 @@ async fn index_process(
             }
         }
     } else if query.get("edit").is_some() {
-        let uuid = Uuid::nil();
-        // TODO: add actuall logic and use proper uuid
-        redirect_to_edit_page(
-            tmpl,
-            "Entry found in database!".to_string(),
-            uuid,
-            REDIRECT_TIMEOUT_S,
-        )
+        match query.get("link") {
+            Some(link) => {
+                // Splitting string and getting uuid, alternatively pretend whole string is uuid
+                let vec: Vec<&str> = link.split("/").collect();
+
+                let mut uuid_str = link.to_string();
+                if vec.len() > 1 {
+                    uuid_str = match vec.get(vec.len() - 2) {
+                        Some(s) => s.to_string(),
+                        None => link.to_string(),
+                    };
+                }
+
+                match Uuid::parse_str(&uuid_str) {
+                    Ok(uuid) => redirect_to_edit_page(
+                        tmpl,
+                        "Got uuid from submission!".to_string(),
+                        uuid,
+                        REDIRECT_TIMEOUT_S,
+                    ),
+                    // TODO: actually redirect back to index page
+                    Err(e) => error_page(tmpl, format!("could not parse uuid: {}", e.to_string())),
+                }
+            }
+            None => {
+                // TODO: actually redirect back to index page
+                error_page(
+                    tmpl,
+                    "link attribute not set please enter a link".to_string(),
+                )
+            }
+        }
     } else {
         error_page(tmpl, "missing create or edit form submission!".to_string())
     }
