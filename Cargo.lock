@@ -1129,6 +1129,7 @@ name = "ics-proxy"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "dotenv",
  "reqwest",
  "sqlx",
  "tera",

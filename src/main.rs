@@ -5,10 +5,19 @@ use sqlx::{Pool, Sqlite, SqlitePool};
 use tera::Tera;
 use uuid::Uuid;
 
+extern crate dotenv;
+use dotenv::dotenv;
+use std::env;
+
 mod model;
 use model::Link;
 
 const REDIRECT_TIMEOUT_S: i32 = 2;
+
+#[derive(Clone)]
+struct CONFIG {
+    root: String,
+}
 
 async fn make_ics_request(req: HttpRequest) -> impl Responder {
     let id = req.match_info().get("id").unwrap_or("");
@@ -46,6 +55,7 @@ async fn edit_page(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
+    conf: web::Data<CONFIG>,
 ) -> Result<HttpResponse, Error> {
     // one uuid: 9228c1a4-8956-4f1c-8b5f-53cc575bd78
     if let Some(uuid_str) = query.get("uuid") {
@@ -55,6 +65,7 @@ async fn edit_page(
                     let mut ctx = tera::Context::new();
                     ctx.insert("link", &link.destination);
                     ctx.insert("uuid", &link.uuid);
+                    ctx.insert("root", &conf.root);
                     let s = tmpl
                         .render("edit.html", &ctx)
                         .map_err(|_| error::ErrorInternalServerError("Template error"))?;
@@ -212,7 +223,21 @@ async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
 
-    let database_url = "sqlite://db/db.db"; //env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
+    dotenv().ok();
+
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(var) => var,
+        Err(e) => panic!("{}", e.to_string()),
+    };
+    let protocol =
+        std::env::var("PROTOCOL").expect("PROTOCOL environemt variable error, make sure it is set");
+    let base_url =
+        std::env::var("BASE_URL").expect("BASE_URL environemt variable error, make sure it is set");
+
+    let conf = CONFIG {
+        root: format!("{}://{}", protocol, base_url),
+    };
+
     let db_pool = SqlitePool::connect(&database_url)
         .await
         .expect("could not create db pool");
@@ -224,6 +249,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .data(db_pool.clone()) // pass database pool to application so we can access it inside handlers
             .data(tera)
+            .data(conf.clone())
             .route("/{id}/events.ics", web::get().to(make_ics_request))
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/edit").route(web::get().to(edit_page)))
