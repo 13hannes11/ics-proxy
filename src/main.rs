@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use url::Url;
 
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
@@ -127,10 +128,19 @@ async fn edit_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
+    config: web::Data<CONFIG>,
 ) -> Result<HttpResponse, Error> {
     // TODO: implement handling
     if let Some(uuid_str) = query.get("uuid") {
         if let Some(destination) = query.get("link") {
+            if destination.starts_with(&config.root) {
+                return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
+            };
+
+            if let Err(_) = Url::parse(destination) {
+                return error_page(tmpl, "could not parse url".to_string());
+            }
+
             match Uuid::parse_str(uuid_str) {
                 Ok(uuid) => {
                     let link = Link {
@@ -161,6 +171,7 @@ async fn index_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
+    config: web::Data<CONFIG>,
 ) -> Result<HttpResponse, Error> {
     if query.get("create").is_some() {
         let uuid = Uuid::new_v4();
@@ -168,6 +179,14 @@ async fn index_process(
         match query.get("link") {
             // TODO: actually parse link to url to make sure its valid
             Some(destination) => {
+                if destination.starts_with(&config.root) {
+                    return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
+                };
+
+                if let Err(_) = Url::parse(destination) {
+                    return error_page(tmpl, "could not parse url".to_string());
+                }
+
                 let insert_link = Link {
                     uuid: uuid.to_string(),
                     destination: destination.to_string(),
