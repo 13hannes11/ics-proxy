@@ -115,19 +115,26 @@ fn redirect_to_index_page(
 async fn edit_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
+    db_pool: web::Data<Pool<Sqlite>>,
 ) -> Result<HttpResponse, Error> {
     // TODO: implement handling
     if let Some(uuid_str) = query.get("uuid") {
-        if let Some(link) = query.get("link") {
+        if let Some(destination) = query.get("link") {
             match Uuid::parse_str(uuid_str) {
                 Ok(uuid) => {
-                    // TODO: actually save entry in database
-                    redirect_to_edit_page(
-                        tmpl,
-                        "Edit successful!".to_string(),
-                        uuid,
-                        REDIRECT_TIMEOUT_S,
-                    )
+                    let link = Link {
+                        uuid: uuid.to_string(),
+                        destination: destination.to_string(),
+                    };
+                    match Link::update(link, db_pool).await {
+                        Ok(_) => redirect_to_edit_page(
+                            tmpl,
+                            "Edit successful!".to_string(),
+                            uuid,
+                            REDIRECT_TIMEOUT_S,
+                        ),
+                        Err(err) => error_page(tmpl, format!("db error: {}", err.to_string())),
+                    }
                 }
                 Err(err) => error_page(tmpl, format!("uuid parsing error: {}", err.to_string())),
             }
@@ -150,23 +157,23 @@ async fn index_process(
         match query.get("link") {
             // TODO: actually parse link to url to make sure its valid
             Some(destination) => {
-        let insert_link = Link {
-            uuid: uuid.to_string(),
+                let insert_link = Link {
+                    uuid: uuid.to_string(),
                     destination: destination.to_string(),
-        };
+                };
 
-        match Link::create(insert_link, db_pool).await {
-            Ok(link) => match Uuid::parse_str(&link.uuid) {
-                Ok(uuid) => redirect_to_edit_page(
-                    tmpl,
-                    "Create was successful".to_string(),
-                    uuid,
-                    REDIRECT_TIMEOUT_S,
-                ),
-                Err(e) => error_page(tmpl, format!("uuid parsing error {}", e.to_string())),
-            },
-            // TODO: actually redirect to index page to try again
-            Err(e) => error_page(tmpl, format!("db error: {}", e.to_string())),
+                match Link::create(insert_link, db_pool).await {
+                    Ok(link) => match Uuid::parse_str(&link.uuid) {
+                        Ok(uuid) => redirect_to_edit_page(
+                            tmpl,
+                            "Create was successful".to_string(),
+                            uuid,
+                            REDIRECT_TIMEOUT_S,
+                        ),
+                        Err(e) => error_page(tmpl, format!("uuid parsing error {}", e.to_string())),
+                    },
+                    // TODO: actually redirect to index page to try again
+                    Err(e) => error_page(tmpl, format!("db error: {}", e.to_string())),
                 }
             }
             None => {

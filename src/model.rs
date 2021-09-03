@@ -30,6 +30,17 @@ impl Link {
             destination: rec.DESTINATION,
         })
     }
+    pub async fn update(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        sqlx::query("UPDATE links SET destination = $2 WHERE uuid = $1;")
+            .bind(&link.uuid)
+            .bind(&link.destination)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(link)
+    }
     pub async fn create(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
         let mut tx = pool.begin().await?;
         sqlx::query("INSERT INTO links (uuid, destination) VALUES ($1, $2);")
