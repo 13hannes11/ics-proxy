@@ -1,8 +1,5 @@
 use actix_web::web;
-use sqlx::sqlite::SqliteRow;
-use sqlx::{Pool, Row, Sqlite};
-use url::Url;
-use uuid::Uuid;
+use sqlx::{Pool, Sqlite};
 
 // Change to strings if to much headache
 pub struct Link {
