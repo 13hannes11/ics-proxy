@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
+use sqlx::{Pool, Sqlite, SqlitePool};
 use tera::Tera;
 use uuid::Uuid;
+
+mod model;
+use model::Link;
 
 const REDIRECT_TIMEOUT_S: i32 = 2;
 
@@ -136,16 +140,41 @@ async fn edit_process(
 async fn index_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
+    db_pool: web::Data<Pool<Sqlite>>,
 ) -> Result<HttpResponse, Error> {
     if query.get("create").is_some() {
-        let uuid = Uuid::nil();
+        let uuid = Uuid::new_v4();
         // TODO: add actuall logic and use proper uuid
-        redirect_to_edit_page(
-            tmpl,
-            "Create was successful".to_string(),
-            uuid,
-            REDIRECT_TIMEOUT_S,
-        )
+        match query.get("link") {
+            // TODO: actually parse link to url to make sure its valid
+            Some(destination) => {
+        let insert_link = Link {
+            uuid: uuid.to_string(),
+                    destination: destination.to_string(),
+        };
+
+        match Link::create(insert_link, db_pool).await {
+            Ok(link) => match Uuid::parse_str(&link.uuid) {
+                Ok(uuid) => redirect_to_edit_page(
+                    tmpl,
+                    "Create was successful".to_string(),
+                    uuid,
+                    REDIRECT_TIMEOUT_S,
+                ),
+                Err(e) => error_page(tmpl, format!("uuid parsing error {}", e.to_string())),
+            },
+            // TODO: actually redirect to index page to try again
+            Err(e) => error_page(tmpl, format!("db error: {}", e.to_string())),
+                }
+            }
+            None => {
+                // TODO: actually redirect back to index page
+                error_page(
+                    tmpl,
+                    "link attribute not set please enter a link".to_string(),
+                )
+            }
+        }
     } else if query.get("edit").is_some() {
         let uuid = Uuid::nil();
         // TODO: add actuall logic and use proper uuid
@@ -174,11 +203,17 @@ async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
 
+    let database_url = "sqlite://db/db.db"; //env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
+    let db_pool = SqlitePool::connect(&database_url)
+        .await
+        .expect("could not create db pool");
+
     println!("Listening on: 127.0.0.1:8080, open browser and visit have a try!");
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
 
         App::new()
+            .data(db_pool.clone()) // pass database pool to application so we can access it inside handlers
             .data(tera)
             .route("/{id}/events.ics", web::get().to(make_ics_request))
             .service(web::resource("/").route(web::get().to(index)))
