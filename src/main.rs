@@ -45,22 +45,24 @@ fn error_page(tmpl: web::Data<tera::Tera>, msg: String) -> Result<HttpResponse, 
 async fn edit_page(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
+    db_pool: web::Data<Pool<Sqlite>>,
 ) -> Result<HttpResponse, Error> {
     // one uuid: 9228c1a4-8956-4f1c-8b5f-53cc575bd78
     if let Some(uuid_str) = query.get("uuid") {
-        // TODO: based on uuid get link from database
-        let link = "this is the link from the db".to_string();
         match Uuid::parse_str(uuid_str) {
-            Ok(uuid) => {
-                let mut ctx = tera::Context::new();
-                ctx.insert("link", &link);
-                ctx.insert("uuid", &uuid.to_string());
-                let s = tmpl
-                    .render("edit.html", &ctx)
-                    .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+            Ok(uuid) => match Link::find_by_uuid(uuid.to_string(), db_pool).await {
+                Ok(link) => {
+                    let mut ctx = tera::Context::new();
+                    ctx.insert("link", &link.destination);
+                    ctx.insert("uuid", &link.uuid);
+                    let s = tmpl
+                        .render("edit.html", &ctx)
+                        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
 
-                Ok(HttpResponse::Ok().content_type("text/html").body(s))
-            }
+                    Ok(HttpResponse::Ok().content_type("text/html").body(s))
+                }
+                Err(err) => error_page(tmpl, format!("db error: {}", err.to_string())),
+            },
             Err(err) => error_page(tmpl, format!("uuid parsing error: {}", err.to_string())),
         }
     } else {
