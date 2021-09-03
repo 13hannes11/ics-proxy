@@ -17,7 +17,7 @@ use model::Link;
 const REDIRECT_TIMEOUT_S: i32 = 2;
 
 #[derive(Clone)]
-struct CONFIG {
+struct Config {
     root: String,
 }
 
@@ -58,7 +58,7 @@ async fn edit_page(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
-    conf: web::Data<CONFIG>,
+    conf: web::Data<Config>,
 ) -> Result<HttpResponse, Error> {
     // one uuid: 9228c1a4-8956-4f1c-8b5f-53cc575bd78
     if let Some(uuid_str) = query.get("uuid") {
@@ -130,7 +130,7 @@ async fn edit_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
-    config: web::Data<CONFIG>,
+    config: web::Data<Config>,
 ) -> Result<HttpResponse, Error> {
     // TODO: implement handling
     if let Some(uuid_str) = query.get("uuid") {
@@ -139,7 +139,7 @@ async fn edit_process(
                 return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
             };
 
-            if let Err(_) = Url::parse(destination) {
+            if Url::parse(destination).is_err() {
                 return error_page(tmpl, "could not parse url".to_string());
             }
 
@@ -173,7 +173,7 @@ async fn index_process(
     tmpl: web::Data<tera::Tera>,
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Pool<Sqlite>>,
-    config: web::Data<CONFIG>,
+    config: web::Data<Config>,
 ) -> Result<HttpResponse, Error> {
     if query.get("create").is_some() {
         let uuid = Uuid::new_v4();
@@ -185,7 +185,7 @@ async fn index_process(
                     return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
                 };
 
-                if let Err(_) = Url::parse(destination) {
+                if Url::parse(destination).is_err() {
                     return error_page(tmpl, "could not parse url".to_string());
                 }
 
@@ -220,7 +220,7 @@ async fn index_process(
         match query.get("link") {
             Some(link) => {
                 // Splitting string and getting uuid, alternatively pretend whole string is uuid
-                let vec: Vec<&str> = link.split("/").collect();
+                let vec: Vec<&str> = link.split('/').collect();
 
                 let mut uuid_str = link.to_string();
                 if vec.len() > 1 {
@@ -279,7 +279,7 @@ async fn main() -> std::io::Result<()> {
     let base_url =
         std::env::var("BASE_URL").expect("BASE_URL environemt variable error, make sure it is set");
 
-    let conf = CONFIG {
+    let conf = Config {
         root: format!("{}://{}", protocol, base_url),
     };
 
