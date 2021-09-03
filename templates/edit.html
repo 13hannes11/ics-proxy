@@ -1,21 +1,37 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
+{% block title %}Edit{% endblock title %}
+{% block head %}
+{{ super() }}
+<script>
+    function copy_link() {
+        /* Get the text field */
+        var copyText = document.getElementById("proxy_link");
 
-<head>
-    <meta charset="utf-8" />
-    <title>Actix web</title>
-</head>
+        /* Copy the text inside the text field */
+        navigator.clipboard.writeText(copyText.value);
+    }
+</script>
+{% endblock head %}
+{% block content %}
 
-<body>
-    <h1>Hi, your link is <a href="{{ root }}/{{ uuid }}/events.ics"">{{ root }}/{{ uuid }}/events.ics</a>!</h1>
-    it takes the data from
-    <p>
+<h2 class="fw-bold mb-1">Hi, your link is </h2>
+<div class="input-group input-group-lg">
+    <input id="proxy_link" class="form-control" type="text" value="{{ root }}/{{ uuid }}/events.ics" disabled>
+    <button onclick="copy_link()" class=" btn btn-outline-secondary">Copy</button>
+</div>
+
+You can simply copy and past this link into any calendar application.
+<hr class="my-4">
+<div class="mt-3">
+    To edit where it leads to:
     <form action=" edit_process">
-            <input name="uuid" type="hidden" value="{{ uuid }}">
-            <input name="link" type="text" value="{{ link }}">
-            <input value="Replace" name="replace" type="submit">
-            </form>
-            </p>
-</body>
+        <input name="uuid" type="hidden" value="{{ uuid }}">
+        <div class="input-group input-group-sm mb-3">
+            <input class="form-control" name="link" type="text" value="{{ link }}">
+            <input class="btn btn-outline-secondary" value="Replace Link" name="replace" type="submit">
+        </div>
+    </form>
+    <a href="/">Back to main page</a>
+</div>
 
-</html>
+{% endblock content %}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
+    {% block head %}
+    <title>{% block title %}{% endblock title %} - ics-proxy</title>
+    {% endblock head %}
+</head>
+
+<body>
+    <div id="content">
+        <div class="modal modal-tour position-static d-block bg-secondary py-5" tabindex="-1" role="dialog"
+            id="modalTour">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content rounded-6 shadow">
+                    <div class="modal-body p-5">
+                        {% block content %}{% endblock content %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="footer">
+        {% block footer %}
+        {% endblock footer %}
+    </div>
+</body>
+
+</html>

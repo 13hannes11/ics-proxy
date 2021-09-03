@@ -1,21 +1,58 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
+{% block title %}Index{% endblock title %}
+{% block head %}
+{{ super() }}
+<script>
+    window.onload = function hide_buttons() {
+        document.getElementById("create-button").hidden = true;
+        document.getElementById("edit-button").hidden = true;
+    }
 
-<head>
-    <meta charset="utf-8" />
-    <title>Actix web</title>
-</head>
+    function switch_buttons() {
+        var text = document.getElementById("link").value;
+        var create = document.getElementById("create-button");
+        var edit = document.getElementById("edit-button");
 
-<body>
-    <h1>Welcome!</h1>
-    <p>
-    <form action="index_process">
-        <label for="link"">Link: </label>
-        <input id=" link" type="text" name="link" /><br />
-        <input value="Create proxy link" name="create" type="submit">
-        <input value="Edit proxy link" name="edit" type="submit">
-    </form>
-    </p>
-</body>
+        if (!isValidHttpUrl(text) || containsCurrentURL(text)) {
+            create.hidden = true;
+            edit.hidden = false;
+        } else {
+            create.hidden = false;
+            edit.hidden = true;
+            console.log("Create")
+        }
+    }
 
-</html>
+    function isValidHttpUrl(string) {
+        let url;
+        try {
+            url = new URL(string);
+        } catch (_) {
+            return false;
+        }
+        return url.protocol === "http:" || url.protocol === "https:";
+    }
+    function containsCurrentURL(str) {
+        return str.includes((new URL(window.location.href)).host);
+    }
+</script>
+{% endblock head %}
+{% block content %}
+<h2 class="fw-bold mb-0">Welcome!</h2>
+<small class="text-muted">Here you can paste an ics link, to create a new proxy url.
+    Alternatively you can paste an existing url to edit it.</small>
+<form action="index_process">
+    <div class="form-floating mb-3">
+        <input name="link" type="text" class="form-control rounded-4" id="link" placeholder="https://some.url"
+            oninput="switch_buttons()">
+        <label for="link">Link</label>
+
+    </div>
+    <div class="form-floating mb-3">
+        <input onload="hide_buttons()" id="create-button" class="w-100 mb-2 btn btn-lg rounded-4 btn-primary"
+            value="Create new" name="create" type="submit">
+        <input onload="hide_buttons()" id="edit-button" class="w-100 mb-2 btn btn-lg rounded-4 btn-primary"
+            value="Edit ✎" name="edit" type="submit">
+    </div>
+</form>
+{% endblock content %}

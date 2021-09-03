@@ -1,1 +1,6 @@
-{{ message }}
+{% extends "base.html" %}
+{% block content %}
+<div class="alert alert-danger" role="alert">
+    {{ message }}
+</div>
+{% endblock content %}
