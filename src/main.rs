@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use url::Url;
 
+use actix_web::http::StatusCode;
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
 use tera::Tera;
@@ -20,25 +21,26 @@ struct CONFIG {
     root: String,
 }
 
-async fn make_ics_request(req: HttpRequest) -> impl Responder {
+async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) -> impl Responder {
     let id = req.match_info().get("id").unwrap_or("");
 
-    let body = match id {
-        "1" => {
-            // TODO: load url based on id from database and make request
-            let res = match reqwest::blocking::get("https://cloud.timeedit.net/uu/web/schema/ri6QX6089X8061QQ88Z4758Z08y37424838828461554904Y684XX09894Q8721784ZnX6503.ics") {
+    match Uuid::parse_str(id) {
+        Ok(uuid) => match Link::find_by_uuid(uuid.to_string(), db_pool).await {
+            Ok(link) => match reqwest::blocking::get(link.destination) {
                 Ok(r) => match r.text() {
-                    Ok(res) => res,
-                    Err(_) => "".to_string(),
+                    Ok(res) => HttpResponse::Ok().content_type("text/calendar").body(res),
+                    Err(_) => HttpResponse::Ok()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .finish(),
                 },
-                Err(_) => "".to_string(),
-            };
-
-            res
-        }
-        _ => "".to_string(),
-    };
-    HttpResponse::Ok().content_type("text/calendar").body(body)
+                Err(_) => HttpResponse::Ok()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .finish(),
+            },
+            Err(_) => HttpResponse::Ok().status(StatusCode::NOT_FOUND).finish(),
+        },
+        Err(_) => HttpResponse::Ok().status(StatusCode::BAD_REQUEST).finish(),
+    }
 }
 
 fn error_page(tmpl: web::Data<tera::Tera>, msg: String) -> Result<HttpResponse, Error> {
