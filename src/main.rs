@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 extern crate dotenv;
 use dotenv::dotenv;
-use std::env;
 
 mod model;
 use model::Link;
@@ -279,6 +278,11 @@ async fn main() -> std::io::Result<()> {
     let base_url =
         std::env::var("BASE_URL").expect("BASE_URL environemt variable error, make sure it is set");
 
+    let host = match std::env::var("HOST") {
+        Ok(host) => host,
+        Err(_e) => "0.0.0.0:8080".to_string(),
+    };
+
     let conf = Config {
         root: format!("{}://{}", protocol, base_url),
     };
@@ -287,9 +291,12 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not create db pool");
 
-    println!("Listening on: 127.0.0.1:8080, open browser and visit have a try!");
+    println!(
+        "Listening on: {}://{}, open browser and visit have a try!",
+        protocol, base_url
+    );
     HttpServer::new(move || {
-        let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
+        let tera = Tera::new("templates/**/*.html").unwrap();
 
         App::new()
             .data(db_pool.clone()) // pass database pool to application so we can access it inside handlers
@@ -301,9 +308,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/index_process").route(web::get().to(index_process)))
             .service(web::resource("/edit_process").route(web::get().to(edit_process)))
     })
-    .bind("127.0.0.1:8080")?
+    .bind(host)?
     .run()
     .await
-
-    //.route("/{id}/events.ics", web::get().to(make_ics_request))
 }
