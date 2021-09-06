@@ -1,5 +1,7 @@
 # ics-proxy
 
+You can find a running instance of this code on [ics-proxy.de](https://ics-proxy.de)
+
 ## Motivation
 
 This application was build because of my frustration with my Universities publishing of schedules. Schedules can be found on [TimeEdit](https://cloud.timeedit.net), 
