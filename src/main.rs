@@ -28,13 +28,13 @@ async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) ->
             Ok(link) => match reqwest::blocking::get(link.destination) {
                 Ok(r) => match r.text() {
                     Ok(res) => HttpResponse::Ok().content_type("text/calendar").body(res),
-                    Err(_) => HttpResponse::Ok()
+                    Err(err) => HttpResponse::Ok()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .finish(),
+                        .body(err.to_string()),
                 },
-                Err(_) => HttpResponse::Ok()
+                Err(err) => HttpResponse::Ok()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .finish(),
+                    .body(err.to_string()),
             },
             Err(_) => HttpResponse::Ok().status(StatusCode::NOT_FOUND).finish(),
         },
