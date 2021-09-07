@@ -4,7 +4,6 @@
 {{ super() }}
 <script>
     window.onload = function hide_buttons() {
-        document.getElementById("create-button").hidden = true;
         document.getElementById("edit-button").hidden = true;
     }
 
@@ -46,13 +45,41 @@
         <input name="link" type="text" class="form-control rounded-4" id="link" placeholder="https://some.url"
             oninput="switch_buttons()">
         <label for="link">Link</label>
-
     </div>
     <div class="form-floating mb-3">
-        <input onload="hide_buttons()" id="create-button" class="w-100 mb-2 btn btn-lg rounded-4 btn-primary"
-            value="Create new" name="create" type="submit">
+        <input id="create-button" class="w-100 mb-2 btn btn-lg rounded-4 btn-primary" value="Create new" name="create"
+            type="submit">
         <input onload="hide_buttons()" id="edit-button" class="w-100 mb-2 btn btn-lg rounded-4 btn-primary"
             value="Edit ✎" name="edit" type="submit">
     </div>
 </form>
+<hr class="my-4">
+<h3>How does it work?</h3>
+
+Upon submitting the server generates a unique link and stores this link together with the calendar link that was just
+entered. The generated link can be added to you calendar application. When your calendar application now wants to update
+the calendar it will contact this server. This server will contact the saved link and relay the answer.
+If you want to switch the what your calendar application receives you can edit the link.
+
+<hr class="my-4">
+<h3>How do I use it?</h3>
+
+Here an example use case:
+<ol>
+    <li>
+        A student enters a link to their schedule <br>
+        (e.g:
+        <u>https://schedule.com/ri6Q56061Z9065Q.ics</u>).
+    </li>
+    <li>
+        The student now receives a unique link like:
+        <u>https://ics-proxy.de/9e737273-4441-4a84-8e3a-99482fd55715/events.ics</u>
+        <br>
+        This link can now be added to calendar applications on phone, laptop, etc.
+    </li>
+    <li>
+        When the students schedule changes they go to this site and pastes the unique link. Now where the link leads to
+        can be replaced by a link to the new schedule link. The calendar application does not need to change.
+    </li>
+</ol>
 {% endblock content %}
