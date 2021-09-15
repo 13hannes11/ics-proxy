@@ -2,7 +2,7 @@ version: '3'
 services:
   ics-proxy:
     container_name: ics-proxy
-    image: 13hannes11/ics-proxy
+    image: ghcr.io/13hannes11/ics-proxy:latest
     env_file: .env
     ports:
      - "8080:8080"
