@@ -1,6 +1,6 @@
 # ics-proxy
 
-You can find a running instance of this code on [ics-proxy.de](https://ics-proxy.de). The docker image is published on [DockerHub](https://hub.docker.com/repository/docker/13hannes11/ics-proxy).
+You can find a running instance of this code on [ics-proxy.de](https://ics-proxy.de). The docker image is published on the [GitHub Container Registry](https://github.com/13hannes11/ics-proxy/pkgs/container/ics-proxy).
 
 ## Screenshots
 
