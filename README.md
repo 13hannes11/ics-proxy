@@ -2,6 +2,13 @@
 
 You can find a running instance of this code on [ics-proxy.de](https://ics-proxy.de). The docker image is published on [DockerHub](https://hub.docker.com/repository/docker/13hannes11/ics-proxy).
 
+## Screenshots
+
+![image](https://user-images.githubusercontent.com/9381167/136559243-2a7c9062-33e3-436e-a781-fef3173e1671.png)
+![image](https://user-images.githubusercontent.com/9381167/136559368-3404a94f-35d1-4235-8c98-2f837b75fda0.png)
+
+
+
 ## Motivation
 
 This application was build because of my frustration with my Universities publishing of schedules. Schedules can be found on [TimeEdit](https://cloud.timeedit.net), 
@@ -15,3 +22,5 @@ The easiest way to build this repository is to use docker. You can simply run `d
 ## Deployment
 
 To deploy you can simply use the `docker-compose.yml` file.
+
+
