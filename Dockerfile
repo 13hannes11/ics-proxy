@@ -1,4 +1,4 @@
-FROM rust:1.54 as builder
+FROM rust:1.56 as builder
 RUN apt-get update && apt-get install -y sqlite3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/ics-proxy
 COPY . .
