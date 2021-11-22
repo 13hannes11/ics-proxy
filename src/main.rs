@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use url::Url;
 
 use actix_web::http::StatusCode;
+use actix_web::web::Data;
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
 use tera::Tera;
@@ -299,9 +300,9 @@ async fn main() -> std::io::Result<()> {
         let tera = Tera::new("templates/**/*.html").unwrap();
 
         App::new()
-            .data(db_pool.clone()) // pass database pool to application so we can access it inside handlers
-            .data(tera)
-            .data(conf.clone())
+            .app_data(Data::new(db_pool.clone())) // pass database pool to application so we can access it inside handlers
+            .app_data(Data::new(tera))
+            .app_data(Data::new(conf.clone()))
             .route("/{id}/events.ics", web::get().to(make_ics_request))
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/edit").route(web::get().to(edit_page)))
