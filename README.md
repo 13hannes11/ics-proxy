@@ -23,4 +23,5 @@ The easiest way to build this repository is to use docker. You can simply run `d
 
 To deploy you can simply use the `docker-compose.yml` file.
 
-
+## Contributing
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
