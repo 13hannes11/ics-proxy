@@ -1,0 +1,12 @@
+version: '3'
+services:
+  ics-proxy:
+    container_name: ics-proxy
+    build: .
+    env_file: .env
+    ports:
+     - "8080:8080"
+    volumes:
+     - database:/app/db
+volumes:
+  database:
