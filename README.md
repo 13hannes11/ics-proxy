@@ -19,6 +19,8 @@ Additionally, each semester this needed to be done as well. I therefore created 
 
 The easiest way to build this repository is to use docker. You can simply run `docker build -t ics-proxy .`
 
+Alternatively you can build and run a local dev version with `docker-compose -f docker-compose.dev.yml up`.
+
 ## Deployment
 
 To deploy you can simply use the `docker-compose.yml` file.
