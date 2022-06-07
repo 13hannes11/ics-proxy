@@ -5,7 +5,7 @@ COPY . .
 RUN cd db && ./create_db.sh
 RUN cargo install --path .
 
-FROM debian:bullseye-slim
+FROM debian:stable-slim
 RUN apt-get update && apt-get install -y sqlite3 openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR app
 COPY --from=builder /usr/local/cargo/bin/ics-proxy ./ics-proxy
