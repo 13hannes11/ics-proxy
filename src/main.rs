@@ -26,8 +26,8 @@ async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) ->
 
     match Uuid::parse_str(id) {
         Ok(uuid) => match Link::find_by_uuid(uuid.to_string(), db_pool).await {
-            Ok(link) => match reqwest::blocking::get(link.destination) {
-                Ok(r) => match r.text() {
+            Ok(link) => match reqwest::get(link.destination).await {
+                Ok(r) => match r.text().await {
                     Ok(res) => HttpResponse::Ok().content_type("text/calendar").body(res),
                     Err(err) => HttpResponse::Ok()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
