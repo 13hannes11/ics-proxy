@@ -23,7 +23,7 @@ struct Config {
 
 async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) -> impl Responder {
     let id = req.match_info().get("id").unwrap_or("");
-
+    println!("serving ics request");
     match Uuid::parse_str(id) {
         Ok(uuid) => match Link::find_by_uuid(uuid.to_string(), db_pool).await {
             Ok(link) => match reqwest::get(link.destination).await {
@@ -60,6 +60,7 @@ async fn edit_page(
     db_pool: web::Data<Pool<Sqlite>>,
     conf: web::Data<Config>,
 ) -> Result<HttpResponse, Error> {
+    println!("serving edit page");
     // one uuid: 9228c1a4-8956-4f1c-8b5f-53cc575bd78
     if let Some(uuid_str) = query.get("uuid") {
         match Uuid::parse_str(uuid_str) {
@@ -257,7 +258,7 @@ async fn index_process(
 // store tera template in application state
 async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
     // TODO: add option to prefill link with parameter
-
+    println!("serving index page");
     let s = tmpl
         .render("index.html", &tera::Context::new())
         .map_err(|_| error::ErrorInternalServerError("Template error"))?;
@@ -292,10 +293,8 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not create db pool");
 
-    sqlx::migrate!("./migrations")
-    .run(&db_pool)
-    .await.unwrap();
-    
+    sqlx::migrate!("./migrations").run(&db_pool).await.unwrap();
+
     println!(
         "Listening on: {}://{}, open browser and visit have a try!",
         protocol, base_url

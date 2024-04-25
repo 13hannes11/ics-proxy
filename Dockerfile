@@ -1,8 +1,10 @@
-FROM rust:1.72 as builder
+FROM rust:1.77 as builder
 RUN apt-get update && apt-get install -y sqlite3 && rm -rf /var/lib/apt/lists/*
+RUN cargo install sqlx-cli
 WORKDIR /usr/src/ics-proxy
 COPY . .
-RUN cd db && ./create_db.sh
+RUN sqlx database create
+RUN sqlx migrate run
 RUN cargo install --path .
 
 FROM debian:stable-slim

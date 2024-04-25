@@ -1,4 +1,8 @@
 use actix_web::web;
+use chrono::DateTime;
+use chrono::Utc;
+use std::time::SystemTime;
+
 use sqlx::{Pool, Sqlite};
 
 // Change to strings if to much headache
@@ -13,6 +17,7 @@ impl Link {
         pool: web::Data<Pool<Sqlite>>,
     ) -> Result<Link, sqlx::Error> {
         let mut tx = pool.begin().await?;
+        println!("find by uuid {uuid}");
         let rec = sqlx::query!(
             r#"
                     SELECT * FROM links WHERE uuid = $1
@@ -21,6 +26,19 @@ impl Link {
         )
         .fetch_one(&mut tx)
         .await?;
+
+        let now = SystemTime::now();
+        let now: DateTime<Utc> = now.into();
+        let now = now.to_rfc3339();
+
+        sqlx::query!(
+            r#" UPDATE links SET last_used = $1 WHERE uuid = $2"#,
+            now,
+            uuid,
+        )
+        .execute(&mut tx)
+        .await?;
+        tx.commit().await?;
 
         Ok(Link {
             uuid: rec.UUID,
@@ -35,6 +53,7 @@ impl Link {
             .execute(&mut tx)
             .await?;
 
+        println!("update uuid {}", link.uuid);
         tx.commit().await?;
         Ok(link)
     }
@@ -46,6 +65,7 @@ impl Link {
             .execute(&mut tx)
             .await?;
 
+        println!("create uuid {}", link.uuid);
         tx.commit().await?;
         Ok(link)
     }

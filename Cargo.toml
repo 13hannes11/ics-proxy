@@ -13,4 +13,5 @@ reqwest = { version = "0.11", features = ["blocking"] }
 tera = "1.15"
 dotenv = "0.15"
 
-sqlx = { version = "0.5", features = [ "sqlite", "runtime-actix-rustls" ] }
+sqlx = { version = "0.5", features = ["sqlite", "runtime-actix-rustls"] }
+chrono = "0.4.38"
