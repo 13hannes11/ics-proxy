@@ -292,6 +292,10 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not create db pool");
 
+    sqlx::migrate!("./migrations")
+    .run(&db_pool)
+    .await.unwrap();
+    
     println!(
         "Listening on: {}://{}, open browser and visit have a try!",
         protocol, base_url
