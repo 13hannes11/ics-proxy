@@ -24,7 +24,7 @@ impl Link {
                 "#,
             uuid
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
         let now = SystemTime::now();
@@ -36,7 +36,7 @@ impl Link {
             now,
             uuid,
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
         tx.commit().await?;
 
@@ -50,7 +50,7 @@ impl Link {
         sqlx::query("UPDATE links SET destination = $2 WHERE uuid = $1;")
             .bind(&link.uuid)
             .bind(&link.destination)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
 
         println!("update uuid {}", link.uuid);
@@ -62,7 +62,7 @@ impl Link {
         sqlx::query("INSERT INTO links (uuid, destination) VALUES ($1, $2);")
             .bind(&link.uuid)
             .bind(&link.destination)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
 
         println!("create uuid {}", link.uuid);

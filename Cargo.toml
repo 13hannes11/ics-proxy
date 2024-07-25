@@ -6,12 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "4.0"
-uuid = { version = "1.0", features = ["v4"] }
-url = "2.2"
-reqwest = { version = "0.11", features = ["blocking"] }
-tera = "1.15"
+actix-web = "4.8"
+uuid = { version = "1.10", features = ["v4"] }
+url = "2.5"
+reqwest = { version = "0.12", features = ["blocking"] }
+tera = "1.20"
 dotenv = "0.15"
-
-sqlx = { version = "0.5", features = ["sqlite", "runtime-actix-rustls"] }
+sqlx = { version = "0.8", features = ["sqlite", "tls-rustls", "runtime-tokio"] }
 chrono = "0.4.38"
