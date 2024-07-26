@@ -5,15 +5,17 @@ use actix_web::http::StatusCode;
 use actix_web::web::Data;
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
+use std::time::SystemTime;
 use tera::Tera;
 use uuid::Uuid;
-
 extern crate dotenv;
+use actix_web::middleware::Logger;
 use dotenv::dotenv;
-
 mod model;
-use model::Link;
+use chrono::DateTime;
 
+use chrono::Utc;
+use model::Link;
 const REDIRECT_TIMEOUT_S: i32 = 2;
 
 #[derive(Clone)]
@@ -23,7 +25,8 @@ struct Config {
 
 async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) -> impl Responder {
     let id = req.match_info().get("id").unwrap_or("");
-    println!("serving ics request");
+    let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+    println!("{now} serving ics request");
     match Uuid::parse_str(id) {
         Ok(uuid) => match Link::find_by_uuid(uuid.to_string(), db_pool).await {
             Ok(link) => match reqwest::get(link.destination).await {
@@ -60,7 +63,8 @@ async fn edit_page(
     db_pool: web::Data<Pool<Sqlite>>,
     conf: web::Data<Config>,
 ) -> Result<HttpResponse, Error> {
-    println!("serving edit page");
+    let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+    println!("{now} serving edit page");
     // one uuid: 9228c1a4-8956-4f1c-8b5f-53cc575bd78
     if let Some(uuid_str) = query.get("uuid") {
         match Uuid::parse_str(uuid_str) {
@@ -258,7 +262,8 @@ async fn index_process(
 // store tera template in application state
 async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
     // TODO: add option to prefill link with parameter
-    println!("serving index page");
+    let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+    println!("{now} serving index page");
     let s = tmpl
         .render("index.html", &tera::Context::new())
         .map_err(|_| error::ErrorInternalServerError("Template error"))?;
@@ -303,6 +308,7 @@ async fn main() -> std::io::Result<()> {
         let tera = Tera::new("templates/**/*.html").unwrap();
 
         App::new()
+            .wrap(Logger::new("%a %{User-Agent}i"))
             .app_data(Data::new(db_pool.clone())) // pass database pool to application so we can access it inside handlers
             .app_data(Data::new(tera))
             .app_data(Data::new(conf.clone()))

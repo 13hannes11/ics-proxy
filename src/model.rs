@@ -1,9 +1,8 @@
 use actix_web::web;
 use chrono::DateTime;
 use chrono::Utc;
-use std::time::SystemTime;
-
 use sqlx::{Pool, Sqlite};
+use std::time::SystemTime;
 
 // Change to strings if to much headache
 pub struct Link {
@@ -16,8 +15,9 @@ impl Link {
         uuid: String,
         pool: web::Data<Pool<Sqlite>>,
     ) -> Result<Link, sqlx::Error> {
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
         let mut tx = pool.begin().await?;
-        println!("find by uuid {uuid}");
+        println!("{now} find by uuid {uuid}");
         let rec = sqlx::query!(
             r#"
                     SELECT * FROM links WHERE uuid = $1
@@ -26,10 +26,6 @@ impl Link {
         )
         .fetch_one(&mut *tx)
         .await?;
-
-        let now = SystemTime::now();
-        let now: DateTime<Utc> = now.into();
-        let now = now.to_rfc3339();
 
         sqlx::query!(
             r#" UPDATE links SET last_used = $1 WHERE uuid = $2"#,
@@ -52,8 +48,8 @@ impl Link {
             .bind(&link.destination)
             .execute(&mut *tx)
             .await?;
-
-        println!("update uuid {}", link.uuid);
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        println!("{} update uuid {}", now, link.uuid);
         tx.commit().await?;
         Ok(link)
     }
@@ -64,8 +60,8 @@ impl Link {
             .bind(&link.destination)
             .execute(&mut *tx)
             .await?;
-
-        println!("create uuid {}", link.uuid);
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        println!("{} create uuid {}", now, link.uuid);
         tx.commit().await?;
         Ok(link)
     }
