@@ -1,0 +1,46 @@
+name: Test Workflow
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1-slim
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install build debendencies
+        run: |
+          apt-get update
+          apt-get install -y sqlite3 libsqlite3-dev build-essential pkg-config libssl-dev
+
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: "Install sqlx cli or use the cached version"
+        if: steps.cache-cargo.outputs.cache-hit != 'true'
+        run: "cargo install sqlx-cli"
+
+      - name: Create database for sqlx
+        run: |
+          sqlx database create
+          sqlx migrate run
+
+      - name: Run build
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test --verbose

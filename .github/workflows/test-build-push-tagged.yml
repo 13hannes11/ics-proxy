@@ -3,7 +3,7 @@ name: build-push-tagged
 on:
   push:
     tags:
-      - '*.*.*'
+      - "*.*.*"
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -11,10 +11,11 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
-
 jobs:
+  test:
+    uses: ./.github/workflows/reusable-test-workflow.yml
   build:
-
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,4 +62,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
