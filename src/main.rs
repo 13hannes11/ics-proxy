@@ -270,6 +270,19 @@ async fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
+fn attach_templates(cfg: &mut web::ServiceConfig) {
+    let tera = Tera::new("templates/**/*.html").unwrap();
+    cfg.app_data(Data::new(tera));
+}
+
+fn attach_routes(cfg: &mut web::ServiceConfig) {
+    cfg.route("/{id}/events.ics", web::get().to(make_ics_request))
+        .service(web::resource("/").route(web::get().to(index)))
+        .service(web::resource("/edit").route(web::get().to(edit_page)))
+        .service(web::resource("/index_process").route(web::get().to(index_process)))
+        .service(web::resource("/edit_process").route(web::get().to(edit_process)));
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -305,18 +318,12 @@ async fn main() -> std::io::Result<()> {
         protocol, base_url
     );
     HttpServer::new(move || {
-        let tera = Tera::new("templates/**/*.html").unwrap();
-
         App::new()
             .wrap(Logger::new("%a %{User-Agent}i"))
             .app_data(Data::new(db_pool.clone())) // pass database pool to application so we can access it inside handlers
-            .app_data(Data::new(tera))
             .app_data(Data::new(conf.clone()))
-            .route("/{id}/events.ics", web::get().to(make_ics_request))
-            .service(web::resource("/").route(web::get().to(index)))
-            .service(web::resource("/edit").route(web::get().to(edit_page)))
-            .service(web::resource("/index_process").route(web::get().to(index_process)))
-            .service(web::resource("/edit_process").route(web::get().to(edit_process)))
+            .configure(attach_templates)
+            .configure(attach_routes)
     })
     .bind(host)?
     .run()
