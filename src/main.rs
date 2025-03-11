@@ -1,12 +1,11 @@
-use std::collections::HashMap;
-use url::Url;
-
 use actix_web::http::StatusCode;
 use actix_web::web::Data;
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
+use std::collections::HashMap;
 use std::time::SystemTime;
 use tera::Tera;
+use url::Url;
 use uuid::Uuid;
 extern crate dotenv;
 use actix_web::middleware::Logger;
@@ -46,14 +45,21 @@ async fn make_ics_request(req: HttpRequest, db_pool: web::Data<Pool<Sqlite>>) ->
     }
 }
 
-fn error_page(tmpl: web::Data<tera::Tera>, msg: String) -> Result<HttpResponse, Error> {
+fn error_page(
+    tmpl: web::Data<tera::Tera>,
+    msg: String,
+    status_code: StatusCode,
+) -> Result<HttpResponse, Error> {
     let mut ctx = tera::Context::new();
     ctx.insert("message", &msg);
     let s = tmpl
         .render("error.html", &ctx)
         .map_err(|_| error::ErrorInternalServerError("Template error"))?;
 
-    Ok(HttpResponse::Ok().content_type("text/html").body(s))
+    Ok(HttpResponse::Ok()
+        .status(status_code)
+        .content_type("text/html")
+        .body(s))
 }
 
 // This is the new edit page:
@@ -80,12 +86,24 @@ async fn edit_page(
 
                     Ok(HttpResponse::Ok().content_type("text/html").body(s))
                 }
-                Err(err) => error_page(tmpl, format!("db error: {}", err.to_string())),
+                Err(err) => error_page(
+                    tmpl,
+                    format!("db error: {}", err.to_string()),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ),
             },
-            Err(err) => error_page(tmpl, format!("uuid parsing error: {}", err.to_string())),
+            Err(err) => error_page(
+                tmpl,
+                format!("uuid parsing error: {}", err.to_string()),
+                StatusCode::BAD_REQUEST,
+            ),
         }
     } else {
-        error_page(tmpl, "uuid parameter missing".to_string())
+        error_page(
+            tmpl,
+            "uuid parameter missing".to_string(),
+            StatusCode::BAD_REQUEST,
+        )
     }
 }
 
@@ -141,11 +159,19 @@ async fn edit_process(
     if let Some(uuid_str) = query.get("uuid") {
         if let Some(destination) = query.get("link") {
             if destination.starts_with(&config.root) {
-                return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
+                return error_page(
+                    tmpl,
+                    "url cannot contain url of ics-proxy".to_string(),
+                    StatusCode::BAD_REQUEST,
+                );
             };
 
             if Url::parse(destination).is_err() {
-                return error_page(tmpl, "could not parse url".to_string());
+                return error_page(
+                    tmpl,
+                    "could not parse url".to_string(),
+                    StatusCode::BAD_REQUEST,
+                );
             }
 
             match Uuid::parse_str(uuid_str) {
@@ -161,16 +187,32 @@ async fn edit_process(
                             uuid,
                             REDIRECT_TIMEOUT_S,
                         ),
-                        Err(err) => error_page(tmpl, format!("db error: {}", err.to_string())),
+                        Err(err) => error_page(
+                            tmpl,
+                            format!("db error: {}", err.to_string()),
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                        ),
                     }
                 }
-                Err(err) => error_page(tmpl, format!("uuid parsing error: {}", err.to_string())),
+                Err(err) => error_page(
+                    tmpl,
+                    format!("uuid parsing error: {}", err.to_string()),
+                    StatusCode::BAD_REQUEST,
+                ),
             }
         } else {
-            error_page(tmpl, "link parameter missing".to_string())
+            error_page(
+                tmpl,
+                "link parameter missing".to_string(),
+                StatusCode::BAD_REQUEST,
+            )
         }
     } else {
-        error_page(tmpl, "uuid parameter missing".to_string())
+        error_page(
+            tmpl,
+            "uuid parameter missing".to_string(),
+            StatusCode::BAD_REQUEST,
+        )
     }
 }
 
@@ -187,11 +229,19 @@ async fn index_process(
             // TODO: actually parse link to url to make sure its valid
             Some(destination) => {
                 if destination.starts_with(&config.root) {
-                    return error_page(tmpl, "url cannot contain url of ics-proxy".to_string());
+                    return error_page(
+                        tmpl,
+                        "url cannot contain url of ics-proxy".to_string(),
+                        StatusCode::BAD_REQUEST,
+                    );
                 };
 
                 if Url::parse(destination).is_err() {
-                    return error_page(tmpl, "could not parse url".to_string());
+                    return error_page(
+                        tmpl,
+                        "could not parse url".to_string(),
+                        StatusCode::BAD_REQUEST,
+                    );
                 }
 
                 let insert_link = Link {
@@ -207,10 +257,18 @@ async fn index_process(
                             uuid,
                             REDIRECT_TIMEOUT_S,
                         ),
-                        Err(e) => error_page(tmpl, format!("uuid parsing error {}", e.to_string())),
+                        Err(e) => error_page(
+                            tmpl,
+                            format!("uuid parsing error {}", e.to_string()),
+                            StatusCode::BAD_REQUEST,
+                        ),
                     },
                     // TODO: actually redirect to index page to try again
-                    Err(e) => error_page(tmpl, format!("db error: {}", e.to_string())),
+                    Err(e) => error_page(
+                        tmpl,
+                        format!("db error: {}", e.to_string()),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    ),
                 }
             }
             None => {
@@ -218,6 +276,7 @@ async fn index_process(
                 error_page(
                     tmpl,
                     "link attribute not set please enter a link".to_string(),
+                    StatusCode::BAD_REQUEST,
                 )
             }
         }
@@ -243,7 +302,11 @@ async fn index_process(
                         REDIRECT_TIMEOUT_S,
                     ),
                     // TODO: actually redirect back to index page
-                    Err(e) => error_page(tmpl, format!("could not parse uuid: {}", e.to_string())),
+                    Err(e) => error_page(
+                        tmpl,
+                        format!("could not parse uuid: {}", e.to_string()),
+                        StatusCode::BAD_REQUEST,
+                    ),
                 }
             }
             None => {
@@ -251,11 +314,16 @@ async fn index_process(
                 error_page(
                     tmpl,
                     "link attribute not set please enter a link".to_string(),
+                    StatusCode::BAD_REQUEST,
                 )
             }
         }
     } else {
-        error_page(tmpl, "missing create or edit form submission!".to_string())
+        error_page(
+            tmpl,
+            "missing create or edit form submission!".to_string(),
+            StatusCode::BAD_REQUEST,
+        )
     }
 }
 
@@ -328,4 +396,216 @@ async fn main() -> std::io::Result<()> {
     .bind(host)?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, web};
+    use sqlx::SqlitePool;
+
+    async fn setup_test_db() -> Pool<Sqlite> {
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("Failed to create test database");
+
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to run migrations");
+
+        pool
+    }
+
+    #[actix_web::test]
+    async fn test_make_ics_request_destination_does_not_exist() {
+        let pool = setup_test_db().await;
+
+        let test_uuid = Uuid::new_v4().to_string();
+        let test_link = Link {
+            uuid: test_uuid.clone(),
+            destination: "http://calendar.example/calendar.ics".to_string(),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_routes),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("/{}/events.ics", test_uuid))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_server_error());
+    }
+
+    #[actix_web::test]
+    async fn test_edit_page() {
+        let pool = setup_test_db().await;
+        let test_uuid = Uuid::new_v4();
+        let destination = "http://calendar.example/".to_string();
+        let test_link = Link {
+            uuid: test_uuid.to_string(),
+            destination: destination.clone(),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_templates)
+                .configure(attach_routes)
+                .app_data(web::Data::new(Config {
+                    root: "http://localhost:8080".to_string(),
+                })),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("/edit?uuid={}", test_uuid))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let body = test::read_body(resp).await;
+        let body_content = String::from_utf8(body.to_vec()).unwrap();
+        let encoded_destination_url = html_escape::encode_safe(destination.as_str());
+        assert!(body_content.contains(encoded_destination_url.to_string().as_str()));
+    }
+
+    #[actix_web::test]
+    async fn test_index_process_create() {
+        let pool = setup_test_db().await;
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_routes)
+                .configure(attach_templates)
+                .app_data(web::Data::new(Config {
+                    root: "http://localhost:8080".to_string(),
+                })),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/index_process?create=1&link=https://example.com/calendar.ics")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_edit_process() {
+        let pool = setup_test_db().await;
+        let test_uuid = Uuid::new_v4();
+        let test_link = Link {
+            uuid: test_uuid.to_string(),
+            destination: "https://example.com/calendar.ics".to_string(),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_routes)
+                .configure(attach_templates)
+                .app_data(web::Data::new(Config {
+                    root: "http://localhost:8080".to_string(),
+                })),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!(
+                "/edit_process?uuid={}&link=https://example.com/new.ics",
+                test_uuid
+            ))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_edit_missing_uuid() {
+        let pool = setup_test_db().await;
+        let test_uuid = Uuid::new_v4();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_routes)
+                .configure(attach_templates)
+                .app_data(web::Data::new(Config {
+                    root: "http://localhost:8080".to_string(),
+                })),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("/edit?uuid={}", test_uuid))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        // TODO: it would be better to return a 404 but for now this is fine
+        assert!(resp.status().is_server_error());
+    }
+
+    #[actix_web::test]
+    async fn test_proxy_request() {
+        let pool = setup_test_db().await;
+
+        // Create a mock server
+        let mut mock_server = mockito::Server::new_async().await;
+        let calendar_data = "BEGIN:VCALENDAR\nEND:VCALENDAR";
+        let mock = mock_server
+            .mock("GET", "/calendar.ics")
+            .with_status(200)
+            .with_header("content-type", "text/calendar")
+            .with_body(calendar_data)
+            .create();
+
+        let test_uuid = Uuid::new_v4().to_string();
+        let test_link = Link {
+            uuid: test_uuid.clone(),
+            destination: format!("{}/calendar.ics", mock_server.url()),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .route("/{id}/events.ics", web::get().to(make_ics_request)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("/{}/events.ics", test_uuid))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let body = test::read_body(resp).await;
+        assert_eq!(body, calendar_data);
+        mock.assert();
+    }
 }
