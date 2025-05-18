@@ -1,5 +1,6 @@
 use actix_web::web;
 use chrono::DateTime;
+use chrono::Duration;
 use chrono::Utc;
 use sqlx::{Pool, Sqlite};
 use std::time::SystemTime;
@@ -65,4 +66,29 @@ impl Link {
         tx.commit().await?;
         Ok(link)
     }
+}
+
+pub async fn delete_old_entries(pool: &Pool<Sqlite>) -> Result<u64, sqlx::Error> {
+    let ninety_days_ago = Utc::now() - Duration::days(90);
+    let ninety_days_ago_str = ninety_days_ago.to_rfc3339();
+
+    let mut tx = pool.begin().await?;
+    println!(
+        "{} deleting entries older than {}",
+        Utc::now().to_rfc3339(),
+        ninety_days_ago_str
+    );
+
+    let result = sqlx::query!(
+        r#"
+            DELETE FROM links
+            WHERE last_used < $1
+        "#,
+        ninety_days_ago_str
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(result.rows_affected())
 }

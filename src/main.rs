@@ -3,8 +3,9 @@ use actix_web::web::Data;
 use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::collections::HashMap;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use tera::Tera;
+use tokio::time;
 use url::Url;
 use uuid::Uuid;
 extern crate dotenv;
@@ -13,8 +14,9 @@ use dotenv::dotenv;
 mod model;
 use chrono::DateTime;
 
-use chrono::Utc;
 use model::Link;
+
+use chrono::Utc;
 const REDIRECT_TIMEOUT_S: i32 = 2;
 
 #[derive(Clone)]
@@ -381,6 +383,12 @@ async fn main() -> std::io::Result<()> {
 
     sqlx::migrate!("./migrations").run(&db_pool).await.unwrap();
 
+    // Spawn a background task for periodic cleanup
+    let cleanup_pool = db_pool.clone();
+    tokio::spawn(async move {
+        run_periodic_cleanup(cleanup_pool).await;
+    });
+
     println!(
         "Listening on: {}://{}, open browser and visit have a try!",
         protocol, base_url
@@ -396,6 +404,23 @@ async fn main() -> std::io::Result<()> {
     .bind(host)?
     .run()
     .await
+}
+
+async fn run_periodic_cleanup(pool: Pool<Sqlite>) {
+    let mut interval = time::interval(Duration::from_secs(3600));
+
+    loop {
+        interval.tick().await;
+
+        match model::delete_old_entries(&pool).await {
+            Ok(rows) => {
+                println!("Cleanup job: successfully deleted {} old entries", rows);
+            }
+            Err(err) => {
+                eprintln!("Error in cleanup job: {}", err);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
