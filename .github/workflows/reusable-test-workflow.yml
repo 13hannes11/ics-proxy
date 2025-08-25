@@ -8,7 +8,7 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     container:
-      image: rust:1-slim
+      image: rust:latest-slim
     steps:
       - uses: actions/checkout@v3
 
