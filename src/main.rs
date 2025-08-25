@@ -139,17 +139,48 @@ fn redirect_to_edit_page(
     redirect_to_page(tmpl, message, link, time_s)
 }
 
-/*
 fn redirect_to_index_page(
     tmpl: web::Data<tera::Tera>,
-    query: web::Query<HashMap<String, String>>,
     message: String,
-    uuid: Uuid,
     time_s: i32,
 ) -> Result<HttpResponse, Error> {
-    // TODO: add option to prefill link
+    let link = "/".to_string();
+    redirect_to_page(tmpl, message, link, time_s)
 }
-*/
+
+async fn delete_process(
+    tmpl: web::Data<tera::Tera>,
+    query: web::Query<HashMap<String, String>>,
+    db_pool: web::Data<Pool<Sqlite>>,
+) -> Result<HttpResponse, Error> {
+    if let Some(uuid_str) = query.get("uuid") {
+        match Uuid::parse_str(uuid_str) {
+            Ok(uuid) => match Link::delete(uuid.to_string(), db_pool).await {
+                Ok(_) => redirect_to_index_page(
+                    tmpl,
+                    "Delete was successful".to_string(),
+                    REDIRECT_TIMEOUT_S,
+                ),
+                Err(err) => error_page(
+                    tmpl,
+                    format!("db error: {}", err.to_string()),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ),
+            },
+            Err(err) => error_page(
+                tmpl,
+                format!("uuid parsing error: {}", err.to_string()),
+                StatusCode::BAD_REQUEST,
+            ),
+        }
+    } else {
+        error_page(
+            tmpl,
+            "uuid parameter missing".to_string(),
+            StatusCode::BAD_REQUEST,
+        )
+    }
+}
 
 async fn edit_process(
     tmpl: web::Data<tera::Tera>,
@@ -350,7 +381,8 @@ fn attach_routes(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/").route(web::get().to(index)))
         .service(web::resource("/edit").route(web::get().to(edit_page)))
         .service(web::resource("/index_process").route(web::get().to(index_process)))
-        .service(web::resource("/edit_process").route(web::get().to(edit_process)));
+        .service(web::resource("/edit_process").route(web::get().to(edit_process)))
+        .service(web::resource("/delete_process").route(web::get().to(delete_process)));
 }
 
 #[actix_web::main]
@@ -589,6 +621,64 @@ mod tests {
         let resp = test::call_service(&app, req).await;
         // TODO: it would be better to return a 404 but for now this is fine
         assert!(resp.status().is_server_error());
+    }
+
+    #[actix_web::test]
+    async fn test_delete_link() {
+        let pool = setup_test_db().await;
+        let test_uuid = Uuid::new_v4();
+        let test_link = Link {
+            uuid: test_uuid.to_string(),
+            destination: "https://example.com/calendar.ics".to_string(),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let result = Link::delete(test_uuid.to_string(), web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to delete link");
+
+        assert_eq!(result, 1);
+
+        let link = Link::find_by_uuid(test_uuid.to_string(), web::Data::new(pool.clone())).await;
+        assert!(link.is_err());
+    }
+
+    #[actix_web::test]
+    async fn test_delete_process() {
+        let pool = setup_test_db().await;
+        let test_uuid = Uuid::new_v4();
+        let test_link = Link {
+            uuid: test_uuid.to_string(),
+            destination: "https://example.com/calendar.ics".to_string(),
+        };
+
+        Link::create(test_link, web::Data::new(pool.clone()))
+            .await
+            .expect("Failed to create test link");
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool.clone()))
+                .configure(attach_routes)
+                .configure(attach_templates)
+                .app_data(web::Data::new(Config {
+                    root: "http://localhost:8080".to_string(),
+                })),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("/delete_process?uuid={}", test_uuid))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let link = Link::find_by_uuid(test_uuid.to_string(), web::Data::new(pool.clone())).await;
+        assert!(link.is_err());
     }
 
     #[actix_web::test]
