@@ -34,6 +34,9 @@ jobs:
         if: steps.cache-cargo.outputs.cache-hit != 'true'
         run: "cargo install sqlx-cli"
 
+      - name: Add .cargo/bin to PATH
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
       - name: Create database for sqlx
         run: |
           sqlx database create
