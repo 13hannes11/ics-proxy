@@ -1,4 +1,4 @@
-FROM rust:1.77 as builder
+FROM rust:latest as builder
 RUN apt-get update && apt-get install -y sqlite3 && rm -rf /var/lib/apt/lists/*
 RUN cargo install sqlx-cli
 WORKDIR /usr/src/ics-proxy
