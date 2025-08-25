@@ -66,6 +66,18 @@ impl Link {
         tx.commit().await?;
         Ok(link)
     }
+
+    pub async fn delete(uuid: String, pool: web::Data<Pool<Sqlite>>) -> Result<u64, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let result = sqlx::query("DELETE FROM links WHERE uuid = $1;")
+            .bind(&uuid)
+            .execute(&mut *tx)
+            .await?;
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        println!("{} delete uuid {}", now, uuid);
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
 }
 
 pub async fn delete_old_entries(pool: &Pool<Sqlite>) -> Result<u64, sqlx::Error> {
