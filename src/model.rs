@@ -44,26 +44,30 @@ impl Link {
     }
     pub async fn update(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
         let mut tx = pool.begin().await?;
-        sqlx::query("UPDATE links SET destination = $2 WHERE uuid = $1;")
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        sqlx::query("UPDATE links SET destination = $2, last_used = $3 WHERE uuid = $1;")
             .bind(&link.uuid)
             .bind(&link.destination)
+            .bind(&now)
             .execute(&mut *tx)
             .await?;
-        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
         println!("{} update uuid {}", now, link.uuid);
         tx.commit().await?;
+
         Ok(link)
     }
     pub async fn create(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
         let mut tx = pool.begin().await?;
-        sqlx::query("INSERT INTO links (uuid, destination) VALUES ($1, $2);")
+        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        sqlx::query("INSERT INTO links (uuid, destination, last_used) VALUES ($1, $2, $3);")
             .bind(&link.uuid)
             .bind(&link.destination)
+            .bind(&now)
             .execute(&mut *tx)
             .await?;
-        let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
         println!("{} create uuid {}", now, link.uuid);
         tx.commit().await?;
+
         Ok(link)
     }
 
@@ -76,6 +80,7 @@ impl Link {
         let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
         println!("{} delete uuid {}", now, uuid);
         tx.commit().await?;
+
         Ok(result.rows_affected())
     }
 }
@@ -100,7 +105,7 @@ pub async fn delete_old_entries(pool: &Pool<Sqlite>) -> Result<u64, sqlx::Error>
     )
     .execute(&mut *tx)
     .await?;
-
     tx.commit().await?;
+
     Ok(result.rows_affected())
 }
