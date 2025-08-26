@@ -9,6 +9,7 @@ use std::time::SystemTime;
 pub struct Link {
     pub uuid: String,
     pub destination: String,
+    pub created_at: Option<String>,
 }
 
 impl Link {
@@ -40,6 +41,7 @@ impl Link {
         Ok(Link {
             uuid: rec.UUID,
             destination: rec.DESTINATION,
+            created_at: rec.created_at,
         })
     }
     pub async fn update(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
@@ -56,15 +58,21 @@ impl Link {
     }
     pub async fn create(link: Link, pool: web::Data<Pool<Sqlite>>) -> Result<Link, sqlx::Error> {
         let mut tx = pool.begin().await?;
-        sqlx::query("INSERT INTO links (uuid, destination) VALUES ($1, $2);")
-            .bind(&link.uuid)
-            .bind(&link.destination)
-            .execute(&mut *tx)
-            .await?;
         let now = <SystemTime as Into<DateTime<Utc>>>::into(SystemTime::now()).to_rfc3339();
+        sqlx::query(
+            "INSERT INTO links (uuid, destination, created_at) VALUES ($1, $2, $3);",
+        )
+        .bind(&link.uuid)
+        .bind(&link.destination)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
         println!("{} create uuid {}", now, link.uuid);
         tx.commit().await?;
-        Ok(link)
+        Ok(Link {
+            created_at: Some(now.to_string()),
+            ..link
+        })
     }
 
     pub async fn delete(uuid: String, pool: web::Data<Pool<Sqlite>>) -> Result<u64, sqlx::Error> {
@@ -97,6 +105,26 @@ pub async fn delete_old_entries(pool: &Pool<Sqlite>) -> Result<u64, sqlx::Error>
             WHERE last_used < $1
         "#,
         ninety_days_ago_str
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(result.rows_affected())
+}
+
+pub async fn set_created_at_for_old_entries(pool: &Pool<Sqlite>) -> Result<u64, sqlx::Error> {
+    let now = Utc::now().to_rfc3339();
+    let mut tx = pool.begin().await?;
+    println!("{} setting created_at for old entries", now);
+
+    let result = sqlx::query!(
+        r#"
+            UPDATE links
+            SET created_at = $1
+            WHERE created_at IS NULL
+        "#,
+        now
     )
     .execute(&mut *tx)
     .await?;
