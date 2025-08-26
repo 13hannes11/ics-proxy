@@ -209,17 +209,23 @@ async fn edit_process(
 
             match Uuid::parse_str(uuid_str) {
                 Ok(uuid) => {
-                    let link = Link {
-                        uuid: uuid.to_string(),
-                        destination: destination.to_string(),
-                    };
-                    match Link::update(link, db_pool).await {
-                        Ok(_) => redirect_to_edit_page(
-                            tmpl,
-                            "Edit successful!".to_string(),
-                            uuid,
-                            REDIRECT_TIMEOUT_S,
-                        ),
+                    match Link::find_by_uuid(uuid.to_string(), db_pool.clone()).await {
+                        Ok(mut link) => {
+                            link.destination = destination.to_string();
+                            match Link::update(link, db_pool).await {
+                                Ok(_) => redirect_to_edit_page(
+                                    tmpl,
+                                    "Edit successful!".to_string(),
+                                    uuid,
+                                    REDIRECT_TIMEOUT_S,
+                                ),
+                                Err(err) => error_page(
+                                    tmpl,
+                                    format!("db error: {}", err.to_string()),
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                ),
+                            }
+                        }
                         Err(err) => error_page(
                             tmpl,
                             format!("db error: {}", err.to_string()),
@@ -280,6 +286,7 @@ async fn index_process(
                 let insert_link = Link {
                     uuid: uuid.to_string(),
                     destination: destination.to_string(),
+                    created_at: None,
                 };
 
                 match Link::create(insert_link, db_pool).await {
@@ -454,6 +461,18 @@ async fn run_periodic_cleanup(pool: Pool<Sqlite>) {
                 eprintln!("Error in cleanup job: {}", err);
             }
         }
+
+        match model::set_created_at_for_old_entries(&pool).await {
+            Ok(rows) => {
+                println!(
+                    "Cleanup job: successfully set created_at for {} entries",
+                    rows
+                );
+            }
+            Err(err) => {
+                eprintln!("Error in cleanup job: {}", err);
+            }
+        }
     }
 }
 
@@ -484,6 +503,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.clone(),
             destination: "http://calendar.example/calendar.ics".to_string(),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
@@ -513,6 +533,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.to_string(),
             destination: destination.clone(),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
@@ -572,6 +593,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.to_string(),
             destination: "https://example.com/calendar.ics".to_string(),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
@@ -632,6 +654,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.to_string(),
             destination: "https://example.com/calendar.ics".to_string(),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
@@ -655,6 +678,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.to_string(),
             destination: "https://example.com/calendar.ics".to_string(),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
@@ -701,6 +725,7 @@ mod tests {
         let test_link = Link {
             uuid: test_uuid.clone(),
             destination: format!("{}/calendar.ics", mock_server.url()),
+            created_at: None,
         };
 
         Link::create(test_link, web::Data::new(pool.clone()))
